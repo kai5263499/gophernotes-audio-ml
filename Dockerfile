@@ -125,7 +125,22 @@ USER jovyan
 # Install go chroma
 RUN GOPATH=~/go && \ 
     go get github.com/go-fingerprint/gochroma && \
-    go get -u github.com/notnil/chess
+    go get github.com/go-fingerprint/gochroma/chromaprint && \
+    go get github.com/go-audio/aiff && \
+	go get github.com/go-audio/audio && \
+	go get github.com/go-audio/wav && \
+    go get github.com/mjibson/go-dsp/fft && \
+    go get github.com/mjibson/go-dsp/spectral && \
+    go get github.com/mjibson/go-dsp/window && \
+    go get github.com/mjibson/go-dsp/wav && \
+	go get github.com/mattetti/audio/decoder && \
+    go get github.com/r9y9/gossp/io && \
+	go get github.com/r9y9/gossp/window && \
+    go get github.com/r9y9/gossp/stft && \
+    go get github.com/davecgh/go-spew/spew && \
+    go get github.com/brentnd/go-snowboy && \
+    go get github.com/gordonklaus/portaudio && \
+    go get github.com/notnil/chess
 
 EXPOSE 8888
 CMD [ "jupyter", "notebook", "--no-browser", "--ip=*",  "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True" ]
