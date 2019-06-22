@@ -1,81 +1,52 @@
-FROM alpine:3.7
+FROM debian:sid-slim
+
+LABEL MAINTAINER Wes Widner <kai5263499@gmail.com>
 
 # Based on https://github.com/ardanlabs/training-ai/tree/master/etc/gophernotesDocker
 
-# Jovyan user
-ENV NB_USER jovyan
+# gopher user
+ENV NB_USER gopher
 ENV NB_UID 1000
-RUN adduser -s /bin/bash -u $NB_UID -D $NB_USER
-USER jovyan
-RUN mkdir /home/$NB_USER/work && \
-    mkdir /home/$NB_USER/.jupyter && \
-    mkdir /home/$NB_USER/.local
-
-USER root
-
-# Install Jupyter and gophernotes.
 RUN set -x \
-    # install python and dependencies
-    && apk update \
-    && apk --no-cache add \
-        ca-certificates \
-        python3 \
-        su-exec \
-        gcc \
-        g++ \
-        git \
-        pkgconfig \
-        python3-dev \
-        zeromq-dev \
-        musl-dev \
-        mercurial \
-        libtool \
-        autoconf \
-        automake \
-        make \
-        cmake \
-        ffmpeg \
-        ffmpeg-dev \
-    && echo pip upgrade && pip3 install --upgrade pip \
-    && echo python3.6 && cp /usr/bin/python3.6 /usr/bin/python \
-    ## install Go
-    && echo update chacher && apk --update-cache --allow-untrusted \
-        --repository http://dl-4.alpinelinux.org/alpine/edge/community \
-        --arch=x86_64 add \
-        go \
-    ## jupyter notebook
-    && ln -s /usr/include/locale.h /usr/include/xlocale.h \
-    && pip3 install jupyter notebook \
-    ## clean
-    && find /usr/lib/python3.6 -name __pycache__ | xargs rm -r \
-    && rm -rf \
-        /root/.[acpw]* \
-        ipaexg00301* \
-    && rm -rf /var/cache/apk/*
+    && useradd -rm -d /home/${NB_USER} -s /bin/bash -g root -G sudo -u ${NB_UID} ${NB_USER} \
+    && mkdir /home/$NB_USER/work \
+    && mkdir /home/$NB_USER/.jupyter \
+    && mkdir /home/$NB_USER/.local \
+    && mkdir -p /home/$NB_USER/.local/share/jupyter/kernels/gophernotes
 
-# switch to jovyan user
-USER jovyan
+# Install pulseaudio
+RUN set -x && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    alsa-utils \
+    ca-certificates \
+    libasound2 libasound2-plugins \
+    pulseaudio pulseaudio-utils portaudio19-dev \
+    libportmidi0 libportmidi-dev \
+    gcc automake autoconf libtool git make direnv \
+    libespeak-ng1 libespeak-ng-dev espeak-ng-data espeak-ng \
+    sox swig ffmpeg curl pkg-config libatlas-base-dev
 
 # environment variables
-ENV GOPATH /home/jovyan/go
 ENV CGO_ENABLED=1 CGO_CPPFLAGS="-I/usr/include"
+ENV GOPATH=/go
+ENV PATH=/go/bin:$PATH
+
+RUN set -x \
+&& apt-get install -y python3 python3-pip golang jupyter-notebook ca-certificates libzmq5 libzmq3-dev pkg-config \
+&& git clone --depth 1 https://github.com/gopherdata/gophernotes.git /go/src/github.com/gopherdata/gophernotes \
+&& go install github.com/gopherdata/gophernotes \
+&& mkdir -p /go/src/github.com/xigh \
+&& git clone --depth 1 https://github.com/xigh/spectrogram /go/src/github.com/xigh/spectrogram
 
 # install gophernotes
 RUN set -x \
-    && GOPATH=~/go \
     && go get -insecure github.com/pebbe/zmq4 \
     && go get github.com/gopherdata/gophernotes \
     && mkdir -p ~/.local/share/jupyter/kernels/gophernotes \
-    && cp -r ~/go/src/github.com/gopherdata/gophernotes/kernel/* ~/.local/share/jupyter/kernels/gophernotes
-
-# move the gophernotes binary
-USER root
-RUN cp /home/jovyan/go/bin/gophernotes /usr/local/bin/
-USER jovyan
+    && cp -r /go/src/github.com/gopherdata/gophernotes/kernel/* /home/$NB_USER/.local/share/jupyter/kernels/gophernotes
 
 # get the relevant Go packages
 RUN set -x \
-    && GOPATH=~/go \
     && go get -insecure gonum.org/v1/plot/... \
     && go get -insecure gonum.org/v1/gonum/... \
     && go get github.com/kniren/gota/... \
@@ -102,45 +73,29 @@ RUN set -x \
     && go get github.com/gonum/stat \
     && go get github.com/mash/gokmeans \
     && go get github.com/garyburd/go-oauth/oauth \
-    && go get github.com/machinebox/sdk-go/textbox
+    && go get github.com/machinebox/sdk-go/textbox \
+    && go get github.com/go-audio/aiff \
+    && go get github.com/go-audio/audio \
+    && go get github.com/go-audio/wav \
+    && go get github.com/mjibson/go-dsp/fft \
+    && go get github.com/mjibson/go-dsp/spectral \
+    && go get github.com/mjibson/go-dsp/window \
+    && go get github.com/mjibson/go-dsp/wav \
+    && go get github.com/mattetti/audio/decoder \
+    && go get github.com/r9y9/gossp/io \
+    && go get github.com/r9y9/gossp/window \
+    && go get github.com/r9y9/gossp/stft \
+    && go get github.com/davecgh/go-spew/spew \
+    && go get github.com/brentnd/go-snowboy \
+    && go get github.com/gordonklaus/portaudio \
+    && go get github.com/notnil/chess
 
-USER root
+# Fix permissions
+RUN set +x \
+&& chown -R ${NB_USER} /go \
+&& chown -R ${NB_USER} /home/${NB_USER}
 
-# Install chromaprint
-RUN git clone https://github.com/acoustid/chromaprint.git && \
-    cd chromaprint && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=ON . && \
-    make && \
-    make install && \
-    wget http://fftw.org/fftw-3.3.8.tar.gz && \
-    tar -zxvf fftw-3.3.8.tar.gz && \
-    cd fftw-3.3.8 && \
-    ./configure && \
-    make && \
-    make install && \
-    cd /
-
-USER jovyan
-
-# Install go chroma
-RUN GOPATH=~/go && \ 
-    go get github.com/go-fingerprint/gochroma && \
-    go get github.com/go-fingerprint/gochroma/chromaprint && \
-    go get github.com/go-audio/aiff && \
-	go get github.com/go-audio/audio && \
-	go get github.com/go-audio/wav && \
-    go get github.com/mjibson/go-dsp/fft && \
-    go get github.com/mjibson/go-dsp/spectral && \
-    go get github.com/mjibson/go-dsp/window && \
-    go get github.com/mjibson/go-dsp/wav && \
-	go get github.com/mattetti/audio/decoder && \
-    go get github.com/r9y9/gossp/io && \
-	go get github.com/r9y9/gossp/window && \
-    go get github.com/r9y9/gossp/stft && \
-    go get github.com/davecgh/go-spew/spew && \
-    go get github.com/brentnd/go-snowboy && \
-    go get github.com/gordonklaus/portaudio && \
-    go get github.com/notnil/chess
+USER gopher
 
 EXPOSE 8888
-CMD [ "jupyter", "notebook", "--no-browser", "--ip=*",  "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True" ]
+# CMD [ "jupyter", "notebook", "--no-browser", "--ip=*",  "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True" ]
