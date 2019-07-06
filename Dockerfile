@@ -32,7 +32,15 @@ ENV GOPATH=/go
 ENV PATH=/go/bin:$PATH
 
 RUN set -x \
-&& apt-get install -y python3 python3-pip golang jupyter-notebook ca-certificates libzmq5 libzmq3-dev pkg-config \
+&& apt-get update \
+&& apt-get install -y python3 python3-pip \
+    jupyter-notebook ca-certificates \
+    pkg-config libzmq5 libzmq3-dev \
+    golang go-dep \
+    libsptk-dev libosptk4 sptk \
+    ca-certificates libzmq5 libzmq3-dev pkg-config \
+    python3-numpy python-h5py \
+    python3-pyaudio libsdl-ttf2.0-0 python3-pygame \
 && git clone --depth 1 https://github.com/gopherdata/gophernotes.git /go/src/github.com/gopherdata/gophernotes \
 && go install github.com/gopherdata/gophernotes \
 && mkdir -p /go/src/github.com/xigh \
@@ -45,7 +53,7 @@ RUN set -x \
     && mkdir -p ~/.local/share/jupyter/kernels/gophernotes \
     && cp -r /go/src/github.com/gopherdata/gophernotes/kernel/* /home/$NB_USER/.local/share/jupyter/kernels/gophernotes
 
-# get the relevant Go packages
+# # get the relevant Go packages
 RUN set -x \
     && go get -insecure gonum.org/v1/plot/... \
     && go get -insecure gonum.org/v1/gonum/... \
@@ -61,6 +69,7 @@ RUN set -x \
     && go get github.com/chewxy/math32 \
     && go get gonum.org/v1/gonum/mat \
     && go get github.com/chewxy/hm \
+    && go get -u gorgonia.org/gorgonia \
     && go get -u gorgonia.org/vecf64 \
     && go get -u gorgonia.org/vecf32 \
     && go get github.com/awalterschulze/gographviz \
@@ -68,8 +77,8 @@ RUN set -x \
     && go get github.com/pkg/errors \
     && go get github.com/stretchr/testify/assert \
     && go get github.com/kniren/gota/dataframe \
-    && go get github.com/skelterjohn/go.matrix\
-    && go get github.com/gonum/matrix/mat64\
+    && go get github.com/skelterjohn/go.matrix \
+    && go get github.com/gonum/matrix/mat64 \
     && go get github.com/gonum/stat \
     && go get github.com/mash/gokmeans \
     && go get github.com/garyburd/go-oauth/oauth \
@@ -88,7 +97,19 @@ RUN set -x \
     && go get github.com/davecgh/go-spew/spew \
     && go get github.com/brentnd/go-snowboy \
     && go get github.com/gordonklaus/portaudio \
-    && go get github.com/notnil/chess
+    && go get github.com/r9y9/gossp
+
+# Install SPTK
+RUN set -x \
+&& git clone https://github.com/r9y9/SPTK.git && cd SPTK \
+&& ./waf configure && ./waf \
+&& ./waf install
+
+# Install python packages
+RUN set -x \
+&& pip3 install tensorflow keras \
+    flask flask_socketio python_speech_features \
+    spidev librosa matplotlib pandas python-pptx tqdm tensorboard
 
 # Fix permissions
 RUN set +x \
@@ -97,5 +118,7 @@ RUN set +x \
 
 USER gopher
 
+WORKDIR /go
+
 EXPOSE 8888
-# CMD [ "jupyter", "notebook", "--no-browser", "--ip=*",  "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True" ]
+CMD [ "jupyter", "notebook", "--no-browser", "--ip=0.0.0.0",  "--NotebookApp.token=''", "--NotebookApp.disable_check_xsrf=True", "--notebook-dir=/go/src/github.com/kai5263499/gophernotes-audio-ml/notebooks" ]
