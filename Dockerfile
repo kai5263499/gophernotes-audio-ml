@@ -109,7 +109,8 @@ RUN set -x \
 RUN set -x \
 && pip3 install tensorflow keras \
     flask flask_socketio python_speech_features \
-    spidev librosa matplotlib pandas python-pptx tqdm tensorboard
+    spidev librosa matplotlib pandas python-pptx \
+    tqdm tensorboard sklearn scikit-learn
 
 # Fix permissions
 RUN set +x \
